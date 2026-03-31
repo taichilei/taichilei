@@ -1,0 +1,76 @@
+# 仓库的统一 CI：README 质量检查 + 贡献图贪吃蛇生成
+name: CI
+
+on:
+  # 推送到主分支时触发（用于自动更新 output 分支上的 snake 产物）
+  push:
+    branches: ["main", "master"]
+  # 定时生成一次（UTC 时间；这里相当于每 24 小时一次）
+  schedule:
+    - cron: "0 */24 * * *"
+  # 允许在 GitHub Actions 页面手动点击运行
+  workflow_dispatch:
+  # PR 也触发，但只跑只读检查（不对仓库写入）
+  pull_request:
+
+# 默认最小权限：只读 contents
+# 需要写入 output 分支的步骤会在对应 job 内提升为 contents: write
+permissions:
+  contents: read
+
+concurrency:
+  # 同一分支/同一 ref 只保留最新一次运行，避免频繁 push 造成队列堆积
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  markdownlint:
+    # Markdown 规范检查（本仓库目前主要是 Profile README）
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # Node 20 LTS
+          node-version: "20"
+
+      - name: Lint Markdown
+        # 使用 npx 直接运行 markdownlint-cli2，无需在仓库内维护 package.json
+        run: npx --yes markdownlint-cli2 README.md
+
+  snake:
+    name: Generate contribution snake
+    # PR 不跑：避免在来自 fork 的 PR 场景里发生写权限问题，也避免把产物写回仓库
+    if: github.event_name != 'pull_request'
+    # 推送 snake 产物到 output 分支需要写权限
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    # 生成与发布很快，设一个上限防止卡住占用 runner
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: generate github-contribution-grid-snake.svg
+        # 生成贡献图贪吃蛇 SVG（亮色/暗色各一份）
+        uses: Platane/snk/svg-only@v3
+        with:
+          github_user_name: taichilei
+          outputs: |
+            dist/github-contribution-grid-snake.svg
+            dist/github-contribution-grid-snake-dark.svg?palette=github-dark
+
+      - name: push github-contribution-grid-snake.svg to output branch
+        # 把 dist/ 发布到 output 分支（常用做法：README 引用 output 分支里的静态文件）
+        uses: crazy-max/ghaction-github-pages@v3.1.0
+        with:
+          target_branch: output
+          build_dir: dist
+        env:
+          # 官方内置 Token，用于在本仓库内推送分支
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
