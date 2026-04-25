@@ -1,11 +1,11 @@
 # Hi, I'm taichilei — a full-stack software engineer
-
-I care about clean engineering, reliable delivery, and a great user experience.
+- I'm looking for a job,🙏
 
 ## Tech stack
 
 - Frontend: React / TypeScript / Next.js
-- Backend: Node.js / Python / Go
+- Backend: Node.js / Python 🐍 / Go/ Java ☕️
+- Database: Mysql\PostgreSQL
 - Infra: Docker / GitHub Actions
 
 ## Links
